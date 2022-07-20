@@ -1,0 +1,28 @@
+#### Edit Below ####
+
+#This CSV export has headers - 'Name'(computername), 'DistinguishedName', 'Lastlogontimestamp'
+$computers = import-csv 'CSV PATH' 
+$targetpath ='target DN'
+
+#Variables for Log file paths
+$notmoved='c:\temp\Not_Moved.csv'
+$operation='c:\temp\MoveOperation.csv'
+$StartOU='c:\temp\originalOU.csv'
+
+################## Do Not Edit Below ######################
+
+#Loop through computers in csv import and perform move operation
+ForEach ($item in $computers.name){
+try {
+#move operation, if you wanted to disable as well, add pipe Disable-Adaccount after the move-adabject
+$move=Get-ADComputer $item | Move-ADObject -TargetPath $targetpath -passthru | select-object Name, Enabled, @{Name = "Current OU"; Expression = {$_.distinguishedname}} -ErrorAction STOP
+}catch{ $error[0] }
+}
+
+#creates log file for moved computers showing - name, Current OU, Original OU
+$move | export-csv $operation -NoTypeInformation
+$computers | select name, Enabled, @{n='Starting OU';e={$_.distinguishedname}} | export-csv $startou -NoTypeInformation
+
+#outputs any computers that were not moved
+Get-ADComputer $computers.name -properties * | where { ($_.distinguishedName -notmatch $targetpath) } | select-object Name, Enabled, @{Name = "Current OU"; Expression = {$_.distinguishedname}}| export-csv $notmoved -NoTypeInformation
+
